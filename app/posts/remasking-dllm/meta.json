@@ -1,0 +1,7 @@
+{
+  "slug": "remasking-dllm",
+  "title": "Remasking in Diffusion Language Models",
+  "date": "2025-10-10",
+  "tags": ["Diffusion", "Research"],
+  "summary": "Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling."
+}
