@@ -1,6 +1,7 @@
-import type { NextConfig } from "next";
-const nextConfig: NextConfig = {
-  output: "export",
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
   images: { unoptimized: true },
+  assetPrefix: './',  // 关键
 };
 export default nextConfig;

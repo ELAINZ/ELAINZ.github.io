@@ -25,6 +25,12 @@ export default function BlogLayout({ posts }: { posts: any[] }) {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
+  const grouped: Record<string, any[]> = posts.reduce((acc, p) => {
+    const cat = p.category || "Uncategorized";
+    (acc[cat] ??= []).push(p);
+    return acc;
+  }, {});
+
   return (
     <div className="relative min-h-screen text-neutral-900 dark:text-neutral-50">
       <div className="fixed inset-0 -z-20 opacity-70">
@@ -76,32 +82,32 @@ export default function BlogLayout({ posts }: { posts: any[] }) {
           </aside>
 
           {/* 右栏文章 */}
-          <section id="blog" className="flex-1 px-6 py-10">
+           <section id="blog" className="flex-1 px-6 py-10">
             <h2 className="text-2xl font-semibold mb-8 flex items-center gap-2">
               <FileText className="h-5 w-5" /> Latest Posts
             </h2>
-            <div className="space-y-6">
-              {posts.map((p, i) => (
-                <Card key={i} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg">
-                      <Link href={`/posts/${p.slug}`} className="hover:underline">
-                        {p.title}
-                      </Link>
-                    </CardTitle>
-                    <CardDescription>{new Date(p.date).toLocaleDateString("en-CA")}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-3">{p.summary}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {p.tags?.map((t: string, idx: number) => (
-                        <span key={idx} className="text-xs px-2 py-1 rounded-full border">{t}</span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {Object.entries(grouped).map(([category, items]) => (
+              <div key={category} className="mb-10">
+                <h3 className="text-xl font-bold mb-4 text-[#2c4176] dark:text-[#94a3b8]">{category}</h3>
+                <div className="space-y-6">
+                  {items.map((p) => (
+                    <Card key={p.slug} className="hover:shadow-md transition-shadow">
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          <Link href={`/posts/${p.slug}`} className="hover:underline">
+                            {p.title}
+                          </Link>
+                        </CardTitle>
+                        <CardDescription>{new Date(p.date).toLocaleDateString("en-CA")}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-3">{p.summary}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
         </main>
 

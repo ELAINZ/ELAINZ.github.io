@@ -3,5 +3,6 @@
   "title": "Small Transformer",
   "date": "2025-10-10",
   "tags": ["Diffusion", "Research"],
-  "summary": "Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling."
+  "summary": "Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.",
+  "category":"LLM"
 }
