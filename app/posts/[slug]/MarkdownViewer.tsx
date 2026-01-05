@@ -30,8 +30,17 @@ export default function MarkdownViewer({ content, slug }: MarkdownViewerProps) {
     if (src.startsWith('/')) {
       return src
     }
-    // 相对路径：通过 API 路由提供图片
-    return `/api/posts/${slug}/image/${src}`
+    // 相对路径：尝试使用 API 路由（开发模式），如果失败则使用 public 目录（生产模式）
+    // 在客户端，我们无法直接判断环境，所以先尝试 API 路由，如果失败会自动回退
+    // 生产模式下，图片应该在 public/posts/[slug]/ 目录下
+    const isDev = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    
+    if (isDev) {
+      return `/api/posts/${slug}/image/${src}`
+    } else {
+      return `/posts/${slug}/${src}`
+    }
   }
 
   return (

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 
+// 只在开发模式下可用
+export const dynamic = 'auto'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string; path: string[] }> }
