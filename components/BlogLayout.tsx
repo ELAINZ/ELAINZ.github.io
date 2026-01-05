@@ -47,6 +47,9 @@ export default function BlogLayout({ posts }: { posts: any[] }) {
                 Blog
               </Link>
               <a href="#about" className="hover:text-blue-600 dark:hover:text-blue-400">About</a>
+              <Link href="/admin" className="hover:text-blue-600 dark:hover:text-blue-400">
+                Admin
+              </Link>
               <button className="p-2 rounded-xl border" onClick={() => setDark(v => !v)}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>

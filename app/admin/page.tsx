@@ -14,6 +14,7 @@ import rehypeKatex from 'rehype-katex'
 import 'highlight.js/styles/github-dark.css'
 import 'katex/dist/katex.min.css'
 import RichTextEditor from '@/components/editor/RichTextEditor'
+import PasswordProtection from './PasswordProtection'
 
 interface BlogData {
   slug: string
@@ -171,6 +172,7 @@ export default function AdminPage() {
   }
 
   return (
+    <PasswordProtection>
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
@@ -384,6 +386,7 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
+    </PasswordProtection>
   )
 }
 
