@@ -57,7 +57,7 @@ export default function BlogLayout({ posts }: { posts: any[] }) {
         {/* 主体部分 */}
         <main className="max-w-6xl mx-auto flex flex-col md:flex-row">
           {/* 左栏 */}
-          <aside className="w-full md:w-64 lg:w-72 xl:w-80 shrink-0 border-r dark:border-neutral-800 p-6 sticky top-14 self-start">
+          <aside className="w-full md:w-48 lg:w-56 xl:w-64 shrink-0 border-r dark:border-neutral-800 p-4 sticky top-14 self-start">
             <motion.img
               src={profile.avatar}
               alt={profile.name}

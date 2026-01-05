@@ -1,0 +1,47 @@
+# 对强化学习的基础介绍
+## 基于偏好微调的基础范式
+### RLHF流程中的近端策略优化 (PPO (Proximal Policy Optimization)) -- OpenAI (2017)
+#### RLHF 流程
+1. 监督微调 (SFT)： 选择一个预训练好的LLM作为基础模型，然后，使用一个高质量，人工策划的指令进行微调。
+2. 奖励模型训练 (Reward Model)：针对一系列prompts， 使用SFT模型生成1+个不同回答，人类标注元进行排序，这些偏好数据被用来训练一个独立的奖励模型 $r_\phi(x,y)$, 将模型输入一个提示和回答，输出一个标量分数，分数越高代表越符合人类偏好。通常基于Bradley-Terry模型。
+3. 强化学习微调 (RL Fine-Tuning)：SFT模型作为初始策略 $\pi_{SFT}$，在RL环境中进行优化。环境每次提供一个提示 $x$, 策略模型 $\pi_theta$ 生成一个回答 $y$。 训练好的奖励模型 $r_\phi$ 对这个回答 $(x,y)$ 进行评分，得到一个奖励值。 PPO算法的目标就是最大化这个奖励值， 同时通过一个KL散度惩罚项来约束优化后的策略 $\pi_\theta$ 不过于偏离初始的SFT策略 $\pi_{SFT}$，以防止模型遗忘预训练知识或产生语法不通顺的文本。
+
+#### PPO 模型
+Policy Model (策略模型，正在被优化的LLM，即Actor)， Value Model (价值模型，通常称为Critic，用于评估在给定状态下策略可能获得的期望回报，以降低策略梯度的方差)，Reward Model (奖励模型，在RL微调解读那参数固定，为策略模型提供奖励信号)，Reference Model (参考模型，通常是SFT模型的副本，参数固定)
+
+#### PPO数学公式
+核心：策略损失(Clipped Surrogate Objective)、价值损失(Value Function Loss) 和熵奖励 (Entropy Bonus)
+
+1. 截断代理目标 LCLIP
+$$
+L^{\text{CLIP}}(\theta) = \hat{\mathbb{E}}_t \Big[ \min \big( r_t(\theta)\hat{A}_t, \operatorname{clip}(r_t(\theta), 1 - \epsilon, 1 + \epsilon)\hat{A}_t \big) \Big]
+$$
+
+$\hat{\mathbb{E}}_t [...]$ 表示在一个批次(batch)的样本上取经验平均。
+$r_t(\theta)$ 是重要性采样比率 (importsnce ratio), 定义为新策略 $\pi_\theta$ 和旧策略 $\pi_{\theta_{old}}$ (即进行梯度更新前的策略) 在时间步t对动作 $a_t$ 的概率之比：
+
+$$
+r_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_\text{old}}(a_t \mid s_t)}
+$$
+
+$s_t$ 是已经生成的token序列，$a_t$ 是下一个要生成的token。这个比率衡量了策略更新的幅度。如果 $r_t(\theta) > 1$，说明新策略更倾向于生成这个token；反之则更不倾向。
+
+$\hat{A_t}$ 是在时间步 $t$ 的优势估计 (advantage estimate) 。它衡量了在状态 $s_t$ 下采取动作 $a_t$ 相对于平均水平的好坏程度。 正代表好，反之代表差。优势函数通常通过广义优势估计 (Generalized Advantage Estimation, GAE) 计算，平衡了偏差和方差。
+
+$clip(r_t(\theta), 1-\epsilon,1+\epsilon)$ 是截断函数。它将比率$r_t(\theta)$ 限制在 $ [1-\epsilon,1+\epsilon]$ 的区间内。 $\epsilon$ 是一个小的超参数 (通常为0.2)。
+
+$min(...)$ 操作时PPO的关键。$\hat{A_t} > 0$ 时，目标函数变为 $min(r_t(\theta)\hat{A_t},(1+\epsilon)\hat{A_t})$。 这意味着即使 $r_t(\theta)$ 变得非常大，贡献也被限制在 $(1+\epsilon)\hat{A_t}$，从而防止策略为了获得高奖励而进行过于激进的更新；$\hat{A_t} < 0$ 时，目标函数变为 $max(r_t(\theta)\hat{A_t},(1+\epsilon)\hat{A_t})$。 这意味着即使 $r_t(\theta)$ 变得非常大，贡献也被限制在 $(1+\epsilon)\hat{A_t}$，从而防止策略为了获得高奖励而进行过于激进的更新。
+
+2. 价值函数损失 LVF
+PPO通常与一个评论家(critic)网络(即价值函数 $V_\phi(s_t)$)一起训练，该网络的目标是准确估计在给定状态$s_t$下未来奖励的总和。价值函数的主要作用是作为基线(baseline)来计算优势$\hat{A_t}$，从而显著降低策略梯度的方差。价值函数的损失通常是一个简单的均方误差(MSE)：
+
+$$
+L^{VF}(\phi) = \hat{\mathbb{E}}_t [(V_\phi(s_t) - V^{target}_t)^2]
+$$
+
+其中，$V^{target}_t$ 是回报的蒙特卡洛估计，即从时间步t开始的累计折扣奖励。
+
+3. 熵奖励 S
+为了鼓励策略进行充分的探索，避免过早地收敛到次优的确定性策略，PPO的目标函数中
+
+4. 复合目标

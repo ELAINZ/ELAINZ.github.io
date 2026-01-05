@@ -1,20 +1,46 @@
 import fs from "fs";
 import path from "path";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 import BackButton from "./BackButton"; 
-import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github-dark.css"; 
-import remarkMath from "remark-math";  
-import rehypeKatex from "rehype-katex"; 
-import "katex/dist/katex.min.css";    
+import MarkdownViewer from "./MarkdownViewer";
+import type { Metadata } from "next";
+
+const baseUrl = 'https://ELAINZ.github.io/personal-blog';    
 
 // 明确告诉 Next.js 这些路径是静态的
 export const dynamicParams = false;
+
+// 根据 slug 查找对应的文件夹
+function findPostFolderBySlug(slug: string): string | null {
+  const base = path.join(process.cwd(), "app/posts");
+  if (!fs.existsSync(base)) {
+    return null;
+  }
+
+  const entries = fs.readdirSync(base, { withFileTypes: true });
+  const folders = entries.filter((e) => e.isDirectory() && !e.name.startsWith("["));
+
+  // 首先尝试直接匹配文件夹名
+  if (folders.some((f) => f.name === slug)) {
+    return slug;
+  }
+
+  // 然后查找 meta.json 中的 slug
+  for (const folder of folders) {
+    const metaPath = path.join(base, folder.name, "meta.json");
+    if (fs.existsSync(metaPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+        if (meta.slug === slug) {
+          return folder.name;
+        }
+      } catch (error) {
+        // 忽略读取错误，继续查找
+      }
+    }
+  }
+
+  return null;
+}
 
 export async function generateStaticParams() {
   const base = path.join(process.cwd(), "app/posts");
@@ -24,14 +50,81 @@ export async function generateStaticParams() {
     return [];
   }
 
-  // 获取所有目录名作为 slug
+  // 获取所有目录，读取 meta.json 中的 slug
   const entries = fs.readdirSync(base, { withFileTypes: true });
-  const slugs = entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith("["))
-    .map((e) => e.name);
+  const folders = entries.filter((e) => e.isDirectory() && !e.name.startsWith("["));
+
+  const slugs = folders.map((folder) => {
+    const metaPath = path.join(base, folder.name, "meta.json");
+    if (fs.existsSync(metaPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+        return meta.slug || folder.name; // 使用 meta.json 中的 slug，如果没有则使用文件夹名
+      } catch (error) {
+        console.warn(`Failed to read meta.json for ${folder.name}:`, error);
+        return folder.name;
+      }
+    }
+    return folder.name;
+  });
 
   console.log("Found slugs:", slugs);
   return slugs.map((slug) => ({ slug }));
+}
+
+export async function generateMetadata(props: any): Promise<Metadata> {
+  const params = await props.params;
+  const { slug } = params || {};
+  
+  if (!slug) {
+    return {
+      title: "Post Not Found",
+    };
+  }
+
+  // 根据 slug 查找对应的文件夹
+  const folderName = findPostFolderBySlug(slug);
+  if (!folderName) {
+    return {
+      title: "Post Not Found",
+    };
+  }
+
+  const base = path.join(process.cwd(), "app/posts", folderName);
+  const metaPath = path.join(base, "meta.json");
+
+  if (!fs.existsSync(metaPath)) {
+    return {
+      title: "Post Not Found",
+    };
+  }
+
+  const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+  const url = `${baseUrl}/posts/${slug}`;
+
+  return {
+    title: meta.title,
+    description: meta.summary || meta.title,
+    keywords: meta.tags || [],
+    authors: [{ name: "Yiheng Zhang" }],
+    openGraph: {
+      title: meta.title,
+      description: meta.summary || meta.title,
+      url: url,
+      type: "article",
+      publishedTime: meta.date,
+      tags: meta.tags || [],
+      authors: ["Yiheng Zhang"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: meta.title,
+      description: meta.summary || meta.title,
+    },
+    alternates: {
+      canonical: url,
+    },
+  };
 }
 
 export default async function BlogPostPage(props: any) {
@@ -43,13 +136,20 @@ export default async function BlogPostPage(props: any) {
     return <div className="p-10 text-center">Missing slug param</div>;
   }
 
-  const base = path.join(process.cwd(), "app/posts", slug);
+  // 根据 slug 查找对应的文件夹
+  const folderName = findPostFolderBySlug(slug);
+  if (!folderName) {
+    console.error("Post not found for slug:", slug);
+    return <div className="p-10 text-center">Post not found: {slug}</div>;
+  }
+
+  const base = path.join(process.cwd(), "app/posts", folderName);
   const metaPath = path.join(base, "meta.json");
   const contentPath = path.join(base, "content.md");
 
   if (!fs.existsSync(metaPath) || !fs.existsSync(contentPath)) {
-    console.error("Post not found:", slug);
-    return <div className="p-10 text-center">Post not found: {slug}</div>;
+    console.error("Post files not found:", folderName);
+    return <div className="p-10 text-center">Post files not found: {slug}</div>;
   }
 
   const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
@@ -62,14 +162,7 @@ export default async function BlogPostPage(props: any) {
       <h1 className="text-3xl font-bold mb-4">{meta.title}</h1>
       <p className="text-sm text-neutral-500 mb-8">{meta.date}</p>
 
-      <article className="prose dark:prose-invert">
-        <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}                    // ✅ 支持 $ 和 $$ 数学语法
-        rehypePlugins={[rehypeRaw, rehypeHighlight, rehypeKatex]}  // ✅ 渲染公式
-        >
-        {content}
-        </ReactMarkdown>
-      </article>
+      <MarkdownViewer content={content} slug={slug} />
     </div>
   );
 }

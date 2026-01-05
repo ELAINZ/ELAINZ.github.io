@@ -1,0 +1,4 @@
+User-Agent: *
+Allow: /
+
+Sitemap: https://ELAINZ.github.io/personal-blog/sitemap.xml

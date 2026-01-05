@@ -1,6 +1,106 @@
 1:"$Sreact.fragment"
-2:I[44298,["./_next/static/chunks/3f8ff96fa9023cf7.js","./_next/static/chunks/a719a85c03394a20.js","./_next/static/chunks/db2cff8a3b051fed.js"],"default"]
-3:I[97367,["./_next/static/chunks/ff1a16fafef87110.js","./_next/static/chunks/247eb132b7f7b574.js"],"OutletBoundary"]
-4:"$Sreact.suspense"
-0:{"buildId":"wZzx01T9P3xeLl79LawBO","rsc":["$","$1","c",{"children":[["$","$L2",null,{"posts":[{"slug":"remasking-dllm","title":"Remasking in Diffusion Language Models","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","content":"aa\r\n```ts\r\nconst x = 10;\r\nconsole.log(x);\r\n```\r\n这是行内公式：$E = mc^2$\r\n$$\r\n\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}\r\n$$\r\n"},{"slug":"small-transformers","title":"Small Transformer","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","content":"aa"},{"slug":"trustworthy-ai","title":"Trustworthy AI","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","content":"aaaa"}]}],[["$","script","script-0",{"src":"./_next/static/chunks/3f8ff96fa9023cf7.js","async":true}],["$","script","script-1",{"src":"./_next/static/chunks/a719a85c03394a20.js","async":true}],["$","script","script-2",{"src":"./_next/static/chunks/db2cff8a3b051fed.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"loading":null,"isPartial":false}
-5:null
+2:I[44298,["./_next/static/chunks/3f8ff96fa9023cf7.js","./_next/static/chunks/422f8bc5844886a5.js","./_next/static/chunks/db2cff8a3b051fed.js"],"default"]
+9:I[97367,["./_next/static/chunks/ff1a16fafef87110.js","./_next/static/chunks/247eb132b7f7b574.js"],"OutletBoundary"]
+a:"$Sreact.suspense"
+3:T1141,# 对强化学习的基础介绍
+## 基于偏好微调的基础范式
+### RLHF流程中的近端策略优化 (PPO (Proximal Policy Optimization)) -- OpenAI (2017)
+#### RLHF 流程
+1. 监督微调 (SFT)： 选择一个预训练好的LLM作为基础模型，然后，使用一个高质量，人工策划的指令进行微调。
+2. 奖励模型训练 (Reward Model)：针对一系列prompts， 使用SFT模型生成1+个不同回答，人类标注元进行排序，这些偏好数据被用来训练一个独立的奖励模型 $r_\phi(x,y)$, 将模型输入一个提示和回答，输出一个标量分数，分数越高代表越符合人类偏好。通常基于Bradley-Terry模型。
+3. 强化学习微调 (RL Fine-Tuning)：SFT模型作为初始策略 $\pi_{SFT}$，在RL环境中进行优化。环境每次提供一个提示 $x$, 策略模型 $\pi_theta$ 生成一个回答 $y$。 训练好的奖励模型 $r_\phi$ 对这个回答 $(x,y)$ 进行评分，得到一个奖励值。 PPO算法的目标就是最大化这个奖励值， 同时通过一个KL散度惩罚项来约束优化后的策略 $\pi_\theta$ 不过于偏离初始的SFT策略 $\pi_{SFT}$，以防止模型遗忘预训练知识或产生语法不通顺的文本。
+
+#### PPO 模型
+Policy Model (策略模型，正在被优化的LLM，即Actor)， Value Model (价值模型，通常称为Critic，用于评估在给定状态下策略可能获得的期望回报，以降低策略梯度的方差)，Reward Model (奖励模型，在RL微调解读那参数固定，为策略模型提供奖励信号)，Reference Model (参考模型，通常是SFT模型的副本，参数固定)
+
+#### PPO数学公式
+核心：策略损失(Clipped Surrogate Objective)、价值损失(Value Function Loss) 和熵奖励 (Entropy Bonus)
+
+1. 截断代理目标 LCLIP
+$$
+L^{\text{CLIP}}(\theta) = \hat{\mathbb{E}}_t \Big[ \min \big( r_t(\theta)\hat{A}_t, \operatorname{clip}(r_t(\theta), 1 - \epsilon, 1 + \epsilon)\hat{A}_t \big) \Big]
+$$
+
+$\hat{\mathbb{E}}_t [...]$ 表示在一个批次(batch)的样本上取经验平均。
+$r_t(\theta)$ 是重要性采样比率 (importsnce ratio), 定义为新策略 $\pi_\theta$ 和旧策略 $\pi_{\theta_{old}}$ (即进行梯度更新前的策略) 在时间步t对动作 $a_t$ 的概率之比：
+
+$$
+r_t(\theta) = \frac{\pi_\theta(a_t \mid s_t)}{\pi_{\theta_\text{old}}(a_t \mid s_t)}
+$$
+
+$s_t$ 是已经生成的token序列，$a_t$ 是下一个要生成的token。这个比率衡量了策略更新的幅度。如果 $r_t(\theta) > 1$，说明新策略更倾向于生成这个token；反之则更不倾向。
+
+$\hat{A_t}$ 是在时间步 $t$ 的优势估计 (advantage estimate) 。它衡量了在状态 $s_t$ 下采取动作 $a_t$ 相对于平均水平的好坏程度。 正代表好，反之代表差。优势函数通常通过广义优势估计 (Generalized Advantage Estimation, GAE) 计算，平衡了偏差和方差。
+
+$clip(r_t(\theta), 1-\epsilon,1+\epsilon)$ 是截断函数。它将比率$r_t(\theta)$ 限制在 $ [1-\epsilon,1+\epsilon]$ 的区间内。 $\epsilon$ 是一个小的超参数 (通常为0.2)。
+
+$min(...)$ 操作时PPO的关键。$\hat{A_t} > 0$ 时，目标函数变为 $min(r_t(\theta)\hat{A_t},(1+\epsilon)\hat{A_t})$。 这意味着即使 $r_t(\theta)$ 变得非常大，贡献也被限制在 $(1+\epsilon)\hat{A_t}$，从而防止策略为了获得高奖励而进行过于激进的更新；$\hat{A_t} < 0$ 时，目标函数变为 $max(r_t(\theta)\hat{A_t},(1+\epsilon)\hat{A_t})$。 这意味着即使 $r_t(\theta)$ 变得非常大，贡献也被限制在 $(1+\epsilon)\hat{A_t}$，从而防止策略为了获得高奖励而进行过于激进的更新。
+
+2. 价值函数损失 LVF
+PPO通常与一个评论家(critic)网络(即价值函数 $V_\phi(s_t)$)一起训练，该网络的目标是准确估计在给定状态$s_t$下未来奖励的总和。价值函数的主要作用是作为基线(baseline)来计算优势$\hat{A_t}$，从而显著降低策略梯度的方差。价值函数的损失通常是一个简单的均方误差(MSE)：
+
+$$
+L^{VF}(\phi) = \hat{\mathbb{E}}_t [(V_\phi(s_t) - V^{target}_t)^2]
+$$
+
+其中，$V^{target}_t$ 是回报的蒙特卡洛估计，即从时间步t开始的累计折扣奖励。
+
+3. 熵奖励 S
+为了鼓励策略进行充分的探索，避免过早地收敛到次优的确定性策略，PPO的目标函数中
+
+4. 复合目标4:Tdd8,# RFCScope
+## Request for Comments (RFCs)
+RFC是IETF发布的技术文档。从Internet-Draft开始，是一种公开草案，允许社区提出意见和修改，后被采纳为RFC。属于Standards Track的RFC会经历一下阶段： Proposed Standard -> Draft Stabdard -> Internet Standard
+RFC一般具有统一格式，包含元数据、目录，以及固定章节。如IANA Considerations 和 Reference。内容通常使用英文说明便于理解，采用形式化表示法（如ABNF、ASN.1、SMI、YANG、CDDL）定义语法结构，提供伪代码或真实代码以展示算法，通过ASCII图和表格描述数据格式、协议流程或系统加工后。
+RFC勘误：Editorial （拼写、语法、排版），Technical （内容错误）。 审核后：Reported，Verified，Held for Document Update
+论文分为了logical ambiguity和logically ambiguous bug。 本文主要研究logical ambiguities bug。本文提出LLM-based framework for detecting logical ambiguities in RFCs：Inconsistency、Under-specification、other
+
+## RFCScope框架：基于LLM的自动化系统。挑战：1. RFC篇幅长 2. 跨文档推理困难 3. 领域知识不足 4. 幻觉问题
+
+### 自动化模块： 1. Context Constructor 2. Partitioner 3. Analyzer 4. Evaluator
+1. 上下文构建器从所有文档提取关键信息
+2. 分段器根据层级结构将RFC及其上下文划分为适合LLM分析的片段
+3. 分析器针对每个片段检测潜在逻辑性歧义，并生成候选勘误报告
+4. 评估器验证推理过程，剔除错误或幻觉结果
+5. 经过人工复核后，输出最终确认的潜在勘误
+   
+### Context Constructor
+1. 将 RFC 按段落划分；
+2. 使用 RFC2HTML 工具解析引用标签与章节号；
+3. 对于带明确章节号的引用，直接提取对应内容；
+4. 若引用未指定章节，使用 GPT-4o 生成关键短语（keyphrase），并利用 LangChain 语义搜索 匹配最相关的段落；
+5. 非 RFC 引用，调用 GPT-4o Search Preview 根据标题或 URL 搜索原文并生成摘要。
+
+### Partitioner
+若章节及上下文合计长度小于设定阈值，或层级已达限制，则将其视为独立分段；否则递归细分其子章节；每段尽可能保持完整语义与逻辑连贯性。
+
+### Analyzer
+分析器基于 OpenAI o3-mini 模型，用于检测逻辑歧义。选择该模型的原因是其具备较强推理能力、成本低于 GPT-4o，并在多项推理评测中表现更优。
+
+检测机制：
+对每个分段执行两轮推理：一次检测“不一致类”，一次检测“描述不足类”；
+提示中包含所有七种子类型（I-1 至 I-3、U-1 至 U-4）的定义与示例；
+模型需输出详细推理链（包括分析依据与结论过程），供后续验证使用。
+
+### Evaluator
+基于o3-mini，负责独立验证分析器生成的报告，防止幻觉输出。
+对不一致类：必须存在明确，可验证的矛盾
+对描述不足类：若缺失信息可在文档后续部分找到、超出协议范围或为作者有意省略， 应拒绝报告
+
+### 人工复核
+IETF Datatracker，IETF邮件存档，Github仓库，IANA注册库与相关文献。
+
+### 未来
+有效性威胁：漏检 错误类型的完整性 上下文构建局限 可复现性
+LLM：更高形式化程度、更精确的定义与约束，可机器解析的结构
+
+### 与dllm研究的相关性
+都是纠错。RFC也可以作为dllm检错中的一项。
+
+# Interactive Greybox Penetration Testing for Cloud Access Control
+0:{"buildId":"PpNhJGoeEgB4b8IFDbdYR","rsc":["$","$1","c",{"children":[["$","$L2",null,{"posts":[{"slug":"function-mcp","title":"Function Calling and MCP","date":"2025-11-8","tags":["agent","intern"],"summary":"Function Calling与MCP协议","category":"agent","content":"# Function Calling and MCP\r\n## Function Calling\r\n### 1.要解决的问题\r\n市面上大模型没有工具调用能力，无法感知和改变环境。\r\n\r\n用户提问 -> AI应用程序正则匹配 -> 第三方API -> AI应用程序发送给大模型 -> 大模型返回结果\r\n\r\n需要后端调用大模型的接口，接口实现底层逻辑。由后端做逻辑复杂，容易出现漏判，输入和字符串强相关，容易出现错误。\r\n\r\n### 2. Function Calling\r\n广义：让大模型告诉后端需要做什么，由后端调用返回结果。能够调用外部工具的一种技术实现。\r\n流程：大模型提供商在模型内部与API层面做了支持的一种能力。向大模型传递拥有所有方法的列表和详细说明，告诉它每一个方法是干什么的，详细说明参数含义，把列表和东西一起传给大模型一起，判断是否需要调用，返回标准化回答。\r\n在模型层面：模型提供商需对大模型进行特别优化，使其具备上下文正确选择合适函数，生成有效参数的能力（SFT，RL）。\r\n在API层面：模型提供商需额外开放对Function Calling的支持（比如GPT API中提供了一个functions参数）。\r\n- 基于提示词传递\r\n用户提问 -> AI应用程序 -> 带上system prompt传递给大模型 -> 传回调用指令 （通过反射，本地方法实现）\r\n问题：1. 模型能力本身 （可能生成自然语言回复） -> 提升模型能力 2. 出现幻觉 3. 对开发者要求高 -> 交给提供商系统内部写死 4.每次都传system prompt，需要约束，成本高 => 狭义function calling\r\n- API传递\r\n\r\n## MCP: 本地式接入，远程服务式接入， 解决工具接入和复用问题\r\n  - 在任意AI应用中，通过一条标准化配置拉取任意工具的包到本地，并在本地起一个进程，将工具作为一个服务运行起来\r\n  - 自动获取工具的描述信息，自动完成工具的调用过程\r\n![alt text](image.png)\r\n工具client和工具server一对一"},{"slug":"remasking-dllm","title":"Remasking in Diffusion Language Models","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","category":"Diffusion","content":"aa\r\n```ts\r\nconst x = 10;\r\nconsole.log(x);\r\n```\r\n这是行内公式：$E = mc^2$\r\n$$\r\n\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}\r\n$$\r\n"},{"slug":"RL-intro","title":"Introduction to Reinforcement Learning","date":"2025-11-8","tags":["RL","Research"],"summary":"对PPO， DPO， GRPO及其变体的介绍","category":"RL","content":"$3"},{"slug":"small-transformers","title":"Small Transformer","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","category":"LLM","content":"aa"},{"slug":"trustworthy-ai","title":"Trustworthy AI","date":"2025-10-10","tags":["Diffusion","Research"],"summary":"Understanding remasking as a self-consistency mechanism in DLLMs and its connection to probabilistic sampling.","category":"trustworthy","content":"aaaa"},{"slug":"wenxi-wang","title":"PhD Application for Wenxi Wang","date":"2025-11-9","tags":["Software","PhD"],"summary":"An introduction about the professor that I am applying","category":"PhD","content":"$4"}]}],["$L5","$L6","$L7"],"$L8"]}],"loading":null,"isPartial":false}
+5:["$","script","script-0",{"src":"./_next/static/chunks/3f8ff96fa9023cf7.js","async":true}]
+6:["$","script","script-1",{"src":"./_next/static/chunks/422f8bc5844886a5.js","async":true}]
+7:["$","script","script-2",{"src":"./_next/static/chunks/db2cff8a3b051fed.js","async":true}]
+8:["$","$L9",null,{"children":["$","$a",null,{"name":"Next.MetadataOutlet","children":"$@b"}]}]
+b:null

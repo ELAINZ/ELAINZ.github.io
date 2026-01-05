@@ -1,0 +1,8 @@
+{
+  "slug": "RL-intro",
+  "title": "Introduction to Reinforcement Learning",
+  "date": "2025-11-8",
+  "tags": ["RL", "Research"],
+  "summary": "对PPO， DPO， GRPO及其变体的介绍",
+  "category":"RL"
+}

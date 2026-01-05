@@ -1,6 +1,21 @@
 export const dynamic = "force-static"; // ✅ 确保是静态渲染
 
 import { loadAllPosts } from "../lib/posts";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Blog",
+  description: "Browse all blog posts by Yiheng Zhang on AI, machine learning, and technology.",
+  openGraph: {
+    title: "Blog | Yiheng Zhang",
+    description: "Browse all blog posts by Yiheng Zhang on AI, machine learning, and technology.",
+    url: "https://ELAINZ.github.io/personal-blog/blog",
+  },
+  twitter: {
+    title: "Blog | Yiheng Zhang",
+    description: "Browse all blog posts by Yiheng Zhang on AI, machine learning, and technology.",
+  },
+};
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { FileText, ArrowLeft } from "lucide-react";
